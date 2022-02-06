@@ -37,15 +37,18 @@ async def root():
 
 @app.get("/posts")
 async def get_posts():
-    return {"data": my_posts}
+    cursor.execute("""SELECT * FROM posts""")
+    posts = cursor.fetchall()
+    print(posts)
+    return {"data": posts}
 
 #title str, content str
 @app.post("/posts/create", status_code=status.HTTP_201_CREATED)
 def create_post(post: Post):
-    post_dict = post.dict()
-    post_dict['id'] = randrange(0,100000)
-    my_posts.append(post_dict)
-    return {"data": post_dict}
+    cursor.execute("""INSERT INTO posts (title, content, published) VALUES(%s, %s, %s) RETURNING *""", (post.title, post.content, post.published))
+    new_post = cursor.fetchone()
+    conn.commit()
+    return {"data": new_post}
 # def create_post(payload: dict = Body(...)):
 #     print(payload)
 #     return {"new_post": {"title": payload['title'], "content":payload['content']}}
@@ -65,7 +68,7 @@ def find_post(id):
             return p
 
 @app.get("/posts/{id}")
-def get_post(id: int, response: Response):
+def get_post(id: int):
     print(id)   
     post = find_post(id)
     if not post:
