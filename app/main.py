@@ -1,6 +1,6 @@
 from builtins import int, print, str
 from typing import Optional
-from fastapi import FastAPI, Response, status, HTTPException
+from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
 from pydantic import BaseModel
 from random import randrange
@@ -8,8 +8,9 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
 
+from sqlalchemy.orm import Session
 from . import models
-from .database import SessionLocal, engine
+from .database import engine, get_db
 
 #bind the models
 models.Base.metadata.create_all(bind=engine)
@@ -18,13 +19,6 @@ models.Base.metadata.create_all(bind=engine)
 #create the app instance
 app = FastAPI()
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 my_posts = [{"title":"First post", "content":"First post content", "id":1}, {"title":"favourite foods", "content": "I like pizza", "id":2}]
 
@@ -45,6 +39,13 @@ while True:
         print("Connection failed")
         print("Error: ", error)
         time.sleep(2)
+
+
+#Route to test sqlalchemy
+@app.route('/sqlalchemy')
+def test_posts(db: Session = Depends(get_db)):
+    return {'status': 'sucess'}
+
 
 @app.get("/")
 async def root():
