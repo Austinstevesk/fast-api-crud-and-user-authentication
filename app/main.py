@@ -8,7 +8,23 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
 
+from . import models
+from .database import SessionLocal, engine
+
+#bind the models
+models.Base.metadata.create_all(bind=engine)
+
+
+#create the app instance
 app = FastAPI()
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 my_posts = [{"title":"First post", "content":"First post content", "id":1}, {"title":"favourite foods", "content": "I like pizza", "id":2}]
 
@@ -69,14 +85,13 @@ def find_post(id):
 
 @app.get("/posts/{id}")
 def get_post(id: int):
-    print(id)   
-    post = find_post(id)
+    cursor.execute("""SELECT * FROM posts WHERE id = %s """, (str(id)))
+    post = cursor.fetchone()
     if not post:
         # response.status_code = status.HTTP_404_NOT_FOUND
         # return {"Message": f'post with id: {id} was not found'}
         raise(HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
                             detail=f'post with id: {id} was not found'))
-    print(post)
     return{"post_detail": post}
 
 
@@ -89,12 +104,12 @@ def find_post_index(id):
 def delete_post(id: int):
     #delete a post
     #find the index of the post
-    index = find_post_index(id)
-    print(index)
-    if index == None:
+    cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING *""", (str(id)))
+    deleted_post = cursor.fetchone()
+    conn.commit()
+    if deleted_post == None:
         raise(HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail = f"Post with id {id} does not exist"))
-    my_posts.pop(index)
     print(my_posts)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
     #my_posts.pop(index)
@@ -102,16 +117,13 @@ def delete_post(id: int):
 
 @app.put("/posts/update/{id}")
 def update_post(id: int, post:Post):
-    index = find_post_index(id)
-    if index == None:
+    cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""", (post.title, post.content, post.published, str(id )))
+    updated_post = cursor.fetchone()
+    conn.commit()
+    if updated_post == None:
         raise(HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
         detail=f"A post with id {id} does not exist"))
-    post_dict = post.dict()
-    my_posts[index] = post_dict
-    post_dict['id'] = id
-    print(post)
-    print(post_dict)
-    return {"data": post_dict}
+    return {"data": updated_post}
 
 
 @app.patch("/posts/update/patch/{id}")
