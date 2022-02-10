@@ -3,15 +3,16 @@ from multiprocessing import synchronize
 from typing import Optional
 from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
-from pydantic import BaseModel
+
 from random import randrange
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
 
 from sqlalchemy.orm import Session
-from . import models
+from . import models, schemas
 from .database import engine, get_db
+
 
 #bind the models
 models.Base.metadata.create_all(bind=engine)
@@ -23,11 +24,6 @@ app = FastAPI()
 
 my_posts = [{"title":"First post", "content":"First post content", "id":1}, {"title":"favourite foods", "content": "I like pizza", "id":2}]
 
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool = True
-    
 while True:
     try:
         conn = psycopg2.connect(host='localhost', dbname='fastapi', user='postgres', password='qweaz', cursor_factory=RealDictCursor)
@@ -44,7 +40,7 @@ while True:
 #Route to test sqlalchemy
 @app.route('/sqlalchemy')
 def test_posts(db: Session = Depends(get_db)):
-    return {'status': 'sucess'}
+    return {'status': 'success'}
 
 
 @app.get("/")
@@ -52,18 +48,18 @@ async def root():
     return {"Message": "Welcome"}
 
 
-@app.get("/posts")
+@app.get("/posts", response_model=schemas.PostResponse)
 async def get_posts(db: Session = Depends(get_db)):
     #Initially this is the way to fetch
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
     posts = db.query(models.Post).all()
     print(posts)
-    return {"data": posts}
+    return posts
 
 #title str, content str
-@app.post("/posts/create", status_code=status.HTTP_201_CREATED)
-def create_post(post: Post, db: Session=Depends(get_db)):
+@app.post("/posts/create", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
+def create_post(post: schemas.UpdatePost, db: Session=Depends(get_db)):
     #Initial query
     # cursor.execute("""INSERT INTO posts (title, content, published) VALUES(%s, %s, %s) RETURNING *""", (post.title, post.content, post.published))
     # new_post = cursor.fetchone()
@@ -75,8 +71,7 @@ def create_post(post: Post, db: Session=Depends(get_db)):
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
-    return {"data": new_post}
-
+    return new_post
 
 # def create_post(payload: dict = Body(...)):
 #     print(payload)
@@ -109,7 +104,7 @@ def get_post(id: int, db: Session = Depends(get_db)):
         # return {"Message": f'post with id: {id} was not found'}
         raise(HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
                             detail=f'post with id: {id} was not found'))
-    return{"post_detail": post}
+    return post
 
 
 # def find_post_index(id):
@@ -137,7 +132,7 @@ def delete_post(id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/posts/update/{id}")
-def update_post(id: int, post: Post, db: Session = Depends(get_db)):
+def update_post(id: int, post: schemas.UpdatePost, db: Session = Depends(get_db)):
     # cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""", (post.title, post.content, post.published, str(id )))
     # updated_post = cursor.fetchone()
     # conn.commit()
@@ -154,18 +149,5 @@ def update_post(id: int, post: Post, db: Session = Depends(get_db)):
     #the post.dict() is the data parsed in by the user, don't confuse with the updated_post
     post_query.update(post.dict(), synchronize_session=False)
     db.commit()
-    return {"data": post_query.first()}
+    return post_query.first()
 
-
-@app.patch("/posts/update/patch/{id}")
-def update_post(id: int, post:Post):
-    index = find_post_index(id)
-    if index == None:
-        raise(HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-        detail=f"A post with id {id} does not exist"))
-    post_dict = post.dict()
-    my_posts[index] = post_dict
-    post_dict['id'] = id
-    print(post)
-    print(post_dict)
-    return {"data": post_dict}
