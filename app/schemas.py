@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
 
 
@@ -13,20 +13,32 @@ class PostBase(BaseModel):
 class CreatePost(PostBase):
     pass #This is because it has all the fields from PostBase
     
-
+ 
 
 class UpdatePost(PostBase):
     pass #Already has all properties from PostBase
 
 
 #Response model - we don't want to send everything as the response
-class PostResponse(BaseModel):
+class PostResponse(PostBase):
     id: int
-    title: str
-    content: str
-    published: bool = True
+    created_at: datetime
 
 
-    #This allows the app to work with thw data even if it is not a dictionary
+    #This allows the app to work with the data even if it is not a dictionary
+    #Because by default what will be the output is sqlalchemy model
+    class Config:
+        orm_mode = True
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class CreateUserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    created_at: datetime
+
     class Config:
         orm_mode = True

@@ -1,22 +1,17 @@
-from builtins import int, print, str
-from multiprocessing import synchronize
-from typing import Optional
+import http
+from typing import List, Optional
 from fastapi import FastAPI, Response, status, HTTPException, Depends
-from fastapi.params import Body
-
-from random import randrange
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
 
 from sqlalchemy.orm import Session
-from . import models, schemas
+from . import models, schemas, utils
 from .database import engine, get_db
 
 
 #bind the models
 models.Base.metadata.create_all(bind=engine)
-
 
 #create the app instance
 app = FastAPI()
@@ -48,13 +43,12 @@ async def root():
     return {"Message": "Welcome"}
 
 
-@app.get("/posts", response_model=schemas.PostResponse)
+@app.get("/posts", response_model=List[schemas.PostResponse])
 async def get_posts(db: Session = Depends(get_db)):
     #Initially this is the way to fetch
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
     posts = db.query(models.Post).all()
-    print(posts)
     return posts
 
 #title str, content str
@@ -91,7 +85,7 @@ def find_post(id):
         if p['id'] == id:
             return p
 
-@app.get("/posts/{id}")
+@app.get("/posts/{id}", response_model=schemas.PostResponse)
 def get_post(id: int, db: Session = Depends(get_db)):
     # cursor.execute("""SELECT * FROM posts WHERE id = %s """, (str(id)))
     #post = cursor.fetchone()
@@ -151,3 +145,27 @@ def update_post(id: int, post: schemas.UpdatePost, db: Session = Depends(get_db)
     db.commit()
     return post_query.first()
 
+
+
+@app.post('/users/new', status_code=status.HTTP_201_CREATED, response_model=schemas.CreateUserResponse)
+def create_new_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+
+    #hash the password - user.password
+    hashed_password = utils.hash(user.password)
+    user.password = hashed_password
+
+    new_user = models.User(**user.dict())
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
+
+@app.get('/users/{id}', response_model=schemas.CreateUserResponse)
+def get_user_by_id(id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == id).first()
+    if not user:
+        raise(HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'User with id: {id} does not exist'))
+
+    return user
