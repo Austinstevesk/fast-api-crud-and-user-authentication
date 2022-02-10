@@ -5,9 +5,12 @@ from typing import List
 from .. import schemas, models
 from ..database import get_db
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/posts",
+    tags=['posts']
+)
 
-@router.get("/posts", response_model=List[schemas.PostResponse])
+@router.get("/", response_model=List[schemas.PostResponse])
 async def get_posts(db: Session = Depends(get_db)):
     #Initially this is the way to fetch
     # cursor.execute("""SELECT * FROM posts""")
@@ -16,7 +19,7 @@ async def get_posts(db: Session = Depends(get_db)):
     return posts
 
 #title str, content str
-@router.post("/posts/create", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
+@router.post("/create", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
 def create_post(post: schemas.UpdatePost, db: Session=Depends(get_db)):
     #Initial query
     # cursor.execute("""INSERT INTO posts (title, content, published) VALUES(%s, %s, %s) RETURNING *""", (post.title, post.content, post.published))
@@ -38,18 +41,14 @@ def create_post(post: schemas.UpdatePost, db: Session=Depends(get_db)):
 
 
 
-#This route cannot be below the /posts/{id} route since it could match the unrelated route
-@router.get("/posts/latest")
-def get_latest_post():
-    latest = my_posts[-1]
-    print(my_posts)
-    return {"latest_post": latest}
-def find_post(id):
-    for p in my_posts:
-        if p['id'] == id:
-            return p
+# #This route cannot be below the /posts/{id} route since it could match the unrelated route
+# @router.get("/latest")
+# def get_latest_post(db: Session = Depends(get_db)):
+#     latest_post = db.query(models.User).filter(models.Post.created_at)
 
-@router.get("/posts/{id}", response_model=schemas.PostResponse)
+    return latest_post
+
+@router.get("/{id}", response_model=schemas.PostResponse)
 def get_post(id: int, db: Session = Depends(get_db)):
     # cursor.execute("""SELECT * FROM posts WHERE id = %s """, (str(id)))
     #post = cursor.fetchone()
@@ -70,7 +69,7 @@ def get_post(id: int, db: Session = Depends(get_db)):
 #         if p['id'] == id:
 #             return i
 
-@router.delete("/posts/delete/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/delete/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int, db: Session = Depends(get_db)):
     #delete a post
     #find the index of the post
@@ -89,7 +88,7 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     #my_posts.pop(index)
 
 
-@router.put("/posts/update/{id}")
+@router.put("/update/{id}")
 def update_post(id: int, post: schemas.UpdatePost, db: Session = Depends(get_db)):
     # cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""", (post.title, post.content, post.published, str(id )))
     # updated_post = cursor.fetchone()
