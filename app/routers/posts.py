@@ -2,7 +2,7 @@ from fastapi import FastAPI, status, HTTPException, Response, Depends, APIRouter
 from sqlalchemy.orm import Session
 from typing import List
 
-from .. import schemas, models
+from .. import schemas, models, oauth2
 from ..database import get_db
 
 router = APIRouter(
@@ -20,11 +20,12 @@ async def get_posts(db: Session = Depends(get_db)):
 
 #title str, content str
 @router.post("/create", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
-def create_post(post: schemas.UpdatePost, db: Session=Depends(get_db)):
+def create_post(post: schemas.UpdatePost, db: Session=Depends(get_db), user_id: int = Depends(oauth2.get_current_user)):
     #Initial query
     # cursor.execute("""INSERT INTO posts (title, content, published) VALUES(%s, %s, %s) RETURNING *""", (post.title, post.content, post.published))
     # new_post = cursor.fetchone()
     # conn.commit()
+    print(user_id)
     new_post = models.Post(**post.dict()) 
     #The above unpacks all the data at a go instead of getting all the fields manually
     print(new_post)
