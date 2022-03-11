@@ -20,12 +20,12 @@ async def get_posts(db: Session = Depends(get_db)):
 
 #title str, content str
 @router.post("/create", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
-def create_post(post: schemas.UpdatePost, db: Session=Depends(get_db), user_id: int = Depends(oauth2.get_current_user)):
+def create_post(post: schemas.UpdatePost, db: Session=Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
     #Initial query
     # cursor.execute("""INSERT INTO posts (title, content, published) VALUES(%s, %s, %s) RETURNING *""", (post.title, post.content, post.published))
     # new_post = cursor.fetchone()
     # conn.commit()
-    print(user_id)
+    print(current_user)
     new_post = models.Post(**post.dict()) 
     #The above unpacks all the data at a go instead of getting all the fields manually
     print(new_post)
